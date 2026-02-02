@@ -1,43 +1,39 @@
-name: LINE Reminder Scheduler
+name: API Add Reminder
 
 on:
-  schedule:
-    - cron: "*/1 * * * *"   # 每 1 分鐘執行一次（UTC 時間）
   workflow_dispatch:
+    inputs:
+      petName:
+        description: "Pet name"
+        required: true
+      message:
+        description: "Reminder message"
+        required: true
+      remindAt:
+        description: "Time (YYYY-MM-DDTHH:MM)"
+        required: true
 
 jobs:
-  check-reminders:
+  add:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Check reminders.json exists
-        id: read
+      - name: Add reminder
         run: |
-          if [ ! -f reminders.json ]; then
-            echo "NO_REMINDERS=true" >> $GITHUB_ENV
-            exit 0
-          fi
+          FILE="reminders.json"
+          if [ ! -f "$FILE" ]; then echo "[]" > "$FILE"; fi
 
-      - name: Send LINE reminders
-        if: env.NO_REMINDERS != 'true'
-        env:
-          USER_ID: ${{ secrets.USER_ID }}
-          TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          jq --arg p "${{ github.event.inputs.petName }}" \
+             --arg m "${{ github.event.inputs.message }}" \
+             --arg t "${{ github.event.inputs.remindAt }}" \
+             '. += [{"petName":$p,"message":$m,"remindAt":$t}]' \
+             "$FILE" > tmp.json && mv tmp.json "$FILE"
+
+      - name: Commit
         run: |
-          NOW=$(TZ=Asia/Taipei date +"%Y-%m-%dT%H:%M")
-
-          jq -c '.[]' reminders.json | while read r; do
-            TIME=$(echo "$r" | jq -r '.remindAt' | cut -c1-16)
-
-            if [ "$TIME" = "$NOW" ]; then
-              MSG=$(echo "$r" | jq -r '.petName + " " + .message')
-
-              curl -s -X POST https://api.line.me/v2/bot/message/push \
-                -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/json" \
-                -d "{\"to\":\"$USER_ID\",\"messages\":[{\"type\":\"text\",\"text\":\"🐾 提醒你：$MSG\"}]}"
-            fi
-          done
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add reminders.json
+          git commit -m "add reminder"
+          git push
