@@ -1,0 +1,43 @@
+name: LINE Reminder Scheduler
+
+on:
+  schedule:
+    - cron: "*/1 * * * *"   # 每 1 分鐘執行一次（UTC 時間）
+  workflow_dispatch:
+
+jobs:
+  check-reminders:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Check reminders.json exists
+        id: read
+        run: |
+          if [ ! -f reminders.json ]; then
+            echo "NO_REMINDERS=true" >> $GITHUB_ENV
+            exit 0
+          fi
+
+      - name: Send LINE reminders
+        if: env.NO_REMINDERS != 'true'
+        env:
+          USER_ID: ${{ secrets.USER_ID }}
+          TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+        run: |
+          NOW=$(TZ=Asia/Taipei date +"%Y-%m-%dT%H:%M")
+
+          jq -c '.[]' reminders.json | while read r; do
+            TIME=$(echo "$r" | jq -r '.remindAt' | cut -c1-16)
+
+            if [ "$TIME" = "$NOW" ]; then
+              MSG=$(echo "$r" | jq -r '.petName + " " + .message')
+
+              curl -s -X POST https://api.line.me/v2/bot/message/push \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "{\"to\":\"$USER_ID\",\"messages\":[{\"type\":\"text\",\"text\":\"🐾 提醒你：$MSG\"}]}"
+            fi
+          done
