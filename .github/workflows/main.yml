@@ -12,7 +12,8 @@ jobs:
     steps:
       - name: Download Google Sheet
         run: |
-          curl -L "https://docs.google.com/spreadsheets/d/14PZsCBH4XnrIWBZPZNiK0y_lln0TbgrhEZ1dfSUs/export?format=csv&gid=2122564761" -o reminders.csv
+          curl -L "https://docs.google.com/spreadsheets/d/14PZSvCBH4FXnrlWBZPZnikOy_IInoTbgrhEtZ1dfSUs/export?format=csv&gid=2122564761" -o reminders.csv
+          
 
       - name: Send LINE reminders
         env:
