@@ -10,10 +10,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download Google Sheet
+      - name: Download Google Sheet CSV
         run: |
           curl -L "https://docs.google.com/spreadsheets/d/14PZSvCBH4FXnrlWBZPZnikOy_IInoTbgrhEtZ1dfSUs/export?format=csv&gid=2122564761" -o reminders.csv
-          
+
+      - name: Show CSV (debug)
+        run: |
+          echo "===== CSV ====="
+          cat reminders.csv
+          echo "==============="
 
       - name: Send LINE reminders
         env:
@@ -21,23 +26,27 @@ jobs:
           TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
         run: |
           NOW=$(TZ=Asia/Taipei date +"%Y-%m-%d %H:%M")
+          PREV=$(TZ=Asia/Taipei date -d "$NOW - 1 minute" +"%Y-%m-%d %H:%M")
 
-          echo "Current time: $NOW"
-          echo "CSV content:"
-          cat reminders.csv
+          echo "Now: $NOW"
+          echo "Prev: $PREV"
 
           tail -n +2 reminders.csv | sed '1s/^\xEF\xBB\xBF//' | while IFS=, read timestamp pet message time; do
 
-            TIME=$(echo "$time" | tr -d '"')
+            TIME=$(echo "$time" | tr -d '" ')
+            PET=$(echo "$pet" | tr -d '" ')
+            MSG=$(echo "$message" | tr -d '" ')
 
-            echo "Parsed time: $TIME"
+            echo "Row → PET=[$PET] MSG=[$MSG] TIME=[$TIME]"
 
-            if [ "$TIME" = "$NOW" ]; then
-              echo "Sending reminder: $pet $message"
+            # 抓 1 分鐘範圍內
+            if [[ "$TIME" > "$PREV" && "$TIME" <= "$NOW" ]]; then
+              echo ">>> MATCH — Sending LINE notification"
 
-              curl -s -X POST https://api.line.me/v2/bot/message/push \
+              curl -i -X POST https://api.line.me/v2/bot/message/push \
                 -H "Authorization: Bearer $TOKEN" \
                 -H "Content-Type: application/json" \
-                -d "{\"to\":\"$USER_ID\",\"messages\":[{\"type\":\"text\",\"text\":\"🐾 提醒你：$pet $message\"}]}"
+                -d "{\"to\":\"$USER_ID\",\"messages\":[{\"type\":\"text\",\"text\":\"🐾 提醒你：$PET $MSG\"}]}"
             fi
+
           done
