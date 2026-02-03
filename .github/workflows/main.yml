@@ -26,7 +26,7 @@ jobs:
           echo "CSV content:"
           cat reminders.csv
 
-          tail -n +2 reminders.csv | while IFS=, read timestamp pet message time; do
+          tail -n +2 reminders.csv | sed '1s/^\xEF\xBB\xBF//' | while IFS=, read timestamp pet message time; do
 
             TIME=$(echo "$time" | tr -d '"')
 
