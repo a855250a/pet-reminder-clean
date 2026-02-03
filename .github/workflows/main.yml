@@ -14,34 +14,32 @@ jobs:
         run: |
           curl -L "https://docs.google.com/spreadsheets/d/14PZSvCBH4FXnrlWBZPZnikOy_IInoTbgrhEtZ1dfSUs/export?format=csv&gid=2122564761" -o reminders.csv
 
-      - name: Show CSV (debug)
-        run: |
-          echo "===== CSV ====="
-          cat reminders.csv
-          echo "==============="
-
       - name: Send LINE reminders
         env:
           USER_ID: ${{ secrets.USER_ID }}
           TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
         run: |
-          NOW=$(TZ=Asia/Taipei date +"%Y-%m-%d %H:%M")
-          PREV=$(TZ=Asia/Taipei date -d "$NOW - 1 minute" +"%Y-%m-%d %H:%M")
+          NOW_TS=$(TZ=Asia/Taipei date +%s)
+          PREV_TS=$((NOW_TS-60))
 
-          echo "Now: $NOW"
-          echo "Prev: $PREV"
+          echo "Now TS: $NOW_TS"
+          echo "Prev TS: $PREV_TS"
+          echo "===== CSV ====="
+          cat reminders.csv
 
           tail -n +2 reminders.csv | sed '1s/^\xEF\xBB\xBF//' | while IFS=, read timestamp pet message time; do
 
-            TIME=$(echo "$time" | tr -d '" ')
+            TIME_STR=$(echo "$time" | tr -d '" ')
             PET=$(echo "$pet" | tr -d '" ')
             MSG=$(echo "$message" | tr -d '" ')
 
-            echo "Row → PET=[$PET] MSG=[$MSG] TIME=[$TIME]"
+            # 轉時間戳
+            TIME_TS=$(TZ=Asia/Taipei date -d "$TIME_STR" +%s 2>/dev/null)
 
-            # 抓 1 分鐘範圍內
-            if [[ "$TIME" > "$PREV" && "$TIME" <= "$NOW" ]]; then
-              echo ">>> MATCH — Sending LINE notification"
+            echo "Row → PET=[$PET] MSG=[$MSG] TIME=[$TIME_STR] TS=$TIME_TS"
+
+            if [ -n "$TIME_TS" ] && [ "$TIME_TS" -gt "$PREV_TS" ] && [ "$TIME_TS" -le "$NOW_TS" ]; then
+              echo ">>> MATCH — Sending LINE"
 
               curl -i -X POST https://api.line.me/v2/bot/message/push \
                 -H "Authorization: Bearer $TOKEN" \
