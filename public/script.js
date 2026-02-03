@@ -7,6 +7,9 @@ const list = document.getElementById("list");
 // 🔹 只用來顯示畫面（不是排程用）
 const reminders = [];
 
+// 🔴 測試用：先寫死你的 LINE userId（之後可以改成自動）
+const LINE_USER_ID = "U37a3cfd8d4488d31650360748ec75ae6"; // ← 換成你自己的
+
 addBtn.addEventListener("click", async () => {
   const petName = petNameInput.value.trim();
   const message = messageInput.value.trim();
@@ -17,10 +20,15 @@ addBtn.addEventListener("click", async () => {
     return;
   }
 
-  const reminder = { petName, message, remindAt };
+  // 🔔 一定要包含 userId
+  const reminder = {
+    userId: LINE_USER_ID,
+    petName,
+    message,
+    remindAt
+  };
 
   try {
-    // 🔔 關鍵：真的送到後端 → LINE
     const res = await fetch("/add-reminder", {
       method: "POST",
       headers: {
@@ -39,7 +47,7 @@ addBtn.addEventListener("click", async () => {
     reminders.push(reminder);
     renderList();
 
-    alert("提醒已送出（LINE 會在時間到時跳）");
+    alert("提醒已送出（時間到 LINE 會通知）");
 
     petNameInput.value = "";
     messageInput.value = "";
