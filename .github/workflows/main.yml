@@ -1,32 +1,27 @@
-name: Check Reminders
+- name: Send LINE reminders
+  env:
+    USER_ID: ${{ secrets.USER_ID }}
+    TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+  run: |
+    NOW=$(TZ=Asia/Taipei date +"%Y-%m-%d %H:%M")
 
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: "*/1 * * * *"
+    echo "Current time: $NOW"
+    echo "CSV content:"
+    cat reminders.csv
 
-jobs:
-  run:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Google Sheet
-        run: |
-          curl -L "https://docs.google.com/spreadsheets/d/14PZsCBH4XnrIWBZPZNiK0y_lln0TbgrhEZ1dfSUs/export?format=csv&gid=2122564761" -o reminders.csv
+    tail -n +2 reminders.csv | while IFS=, read timestamp pet message time; do
 
-      - name: Send LINE reminders
-        env:
-          USER_ID: ${{ secrets.USER_ID }}
-          TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
-        run: |
-          NOW=$(TZ=Asia/Taipei date +"%Y-%m-%dT%H:%M")
+      # 移除可能的雙引號
+      TIME=$(echo "$time" | tr -d '"')
 
-          tail -n +2 reminders.csv | while IFS=, read timestamp pet message time; do
-            TIME=$(echo $time | cut -c1-16)
+      echo "Parsed time: $TIME"
 
-            if [ "$TIME" = "$NOW" ]; then
-              curl -s -X POST https://api.line.me/v2/bot/message/push \
-                -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/json" \
-                -d "{\"to\":\"$USER_ID\",\"messages\":[{\"type\":\"text\",\"text\":\"🐾 提醒你：$pet $message\"}]}"
-            fi
-          done
+      if [ "$TIME" = "$NOW" ]; then
+        echo "Sending reminder: $pet $message"
+
+        curl -s -X POST https://api.line.me/v2/bot/message/push \
+          -H "Authorization: Bearer $TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "{\"to\":\"$USER_ID\",\"messages\":[{\"type\":\"text\",\"text\":\"🐾 提醒你：$pet $message\"}]}"
+      fi
+    done
