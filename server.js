@@ -5,6 +5,7 @@ console.log("🔥 SERVER.JS IS RUNNING FROM C:\\projects");
 require("dns").setDefaultResultOrder("ipv4first");
 
 // ✅ 讀取環境變數
+process.env.TZ = "Asia/Taipei";
 require("dotenv").config();
 
 const express = require("express");
