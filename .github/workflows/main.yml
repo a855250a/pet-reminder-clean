@@ -1,6 +1,7 @@
 name: Check Reminders
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: "*/1 * * * *"
 
